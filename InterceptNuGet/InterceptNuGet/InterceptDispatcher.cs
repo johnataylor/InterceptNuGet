@@ -1,9 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
-using NuGet.Versioning;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace InterceptNuGet
@@ -14,7 +10,7 @@ namespace InterceptNuGet
         Tuple<string, Func<InterceptCallContext, Task>>[] _feedFuncs;
         InterceptChannel _channel;
 
-        public InterceptDispatcher(string baseAddress, string passThroughAddress)
+        public InterceptDispatcher(string baseAddress, string searchBaseAddress, string passThroughAddress)
         {
             _funcs = new Tuple<string, Func<InterceptCallContext, Task>>[]
             {
@@ -35,7 +31,7 @@ namespace InterceptNuGet
                 new Tuple<string, Func<InterceptCallContext, Task>>("$metadata", Feed_Metadata)
             };
 
-            _channel = new InterceptChannel(baseAddress, passThroughAddress);
+            _channel = new InterceptChannel(baseAddress, searchBaseAddress, passThroughAddress);
         }
 
         public async Task Invoke(InterceptCallContext context)
@@ -102,21 +98,45 @@ namespace InterceptNuGet
         async Task Count(InterceptCallContext context)
         {
             context.Log("Count", ConsoleColor.Green);
-            await _channel.PassThrough(context);
+
+            IDictionary<string, string> arguments = ExtractArguments(context.RequestUri.Query);
+
+            string searchTerm = Uri.UnescapeDataString(arguments["searchTerm"]).Trim('\'');
+            bool isLatestVersion = arguments.Contains(new KeyValuePair<string, string>("$filter", "IsLatestVersion"));
+            string targetFramework = Uri.UnescapeDataString(arguments["targetFramework"]).Trim('\'');
+            bool includePrerelease = false;
+            bool.TryParse(Uri.UnescapeDataString(arguments["includePrerelease"]), out includePrerelease);
+
+            await _channel.Count(context, searchTerm, isLatestVersion, targetFramework, includePrerelease);
         }
         async Task Search(InterceptCallContext context)
         {
             context.Log("Search", ConsoleColor.Green);
-            await _channel.PassThrough(context);
+
+            IDictionary<string, string> arguments = ExtractArguments(context.RequestUri.Query);
+
+            string searchTerm = Uri.UnescapeDataString(arguments["searchTerm"]).Trim('\'');
+            bool isLatestVersion = arguments.Contains(new KeyValuePair<string, string>("$filter", "IsLatestVersion"));
+            string targetFramework = Uri.UnescapeDataString(arguments["targetFramework"]).Trim('\'');
+            bool includePrerelease = false;
+            bool.TryParse(Uri.UnescapeDataString(arguments["includePrerelease"]), out includePrerelease);
+            string orderBy = Uri.UnescapeDataString(arguments["$orderby"]);
+            int skip = 0;
+            int.TryParse(Uri.UnescapeDataString(arguments["$skip"]), out skip);
+            int take = 30;
+            int.TryParse(Uri.UnescapeDataString(arguments["$top"]), out take);
+
+            await _channel.Search(context, searchTerm, isLatestVersion, targetFramework, includePrerelease, skip, take);
         }
 
         async Task FindPackagesById(InterceptCallContext context)
         {
             context.Log("FindPackagesById", ConsoleColor.Green);
 
-            string query = context.RequestUri.Query;
+            //TODO: simplify this code and make it more similar to the other functions
 
             string[] terms = context.RequestUri.Query.TrimStart('?').Split('&');
+
             bool isLatestVersion = false;
             bool isAbsoluteLatestVersion = false;
             string id = null;
@@ -176,23 +196,16 @@ namespace InterceptNuGet
         {
             context.Log("GetUpdates", ConsoleColor.Green);
 
-            string query = context.RequestUri.Query;
-
-            IDictionary<string, string> arguments = new Dictionary<string, string>();
-
-            string[] args = query.TrimStart('?').Split('&');
-            foreach (var arg in args)
-            {
-                string[] val = arg.Split('=');
-                arguments[val[0]] = Uri.UnescapeDataString(val[1]);
-            }
+            IDictionary<string, string> arguments = ExtractArguments(context.RequestUri.Query);
 
             string[] packageIds = Uri.UnescapeDataString(arguments["packageIds"]).Trim('\'').Split('|');
             string[] versions = Uri.UnescapeDataString(arguments["versions"]).Trim('\'').Split('|');
             string[] versionConstraints = Uri.UnescapeDataString(arguments["versionConstraints"]).Trim('\'').Split('|');
             string[] targetFrameworks = Uri.UnescapeDataString(arguments["targetFrameworks"]).Trim('\'').Split('|');
-            bool includePrerelease = bool.Parse(arguments["includePrerelease"]);
-            bool includeAllVersions = bool.Parse(arguments["includeAllVersions"]);
+            bool includePrerelease = false;
+            bool.TryParse(arguments["includePrerelease"], out includePrerelease);
+            bool includeAllVersions = false;
+            bool.TryParse(arguments["includeAllVersions"], out includeAllVersions);
 
             await _channel.GetUpdates(context, packageIds, versions, versionConstraints, targetFrameworks, includePrerelease, includeAllVersions);
         }
@@ -291,6 +304,18 @@ namespace InterceptNuGet
                 }
             }
             return string.Empty;
+        }
+
+        static IDictionary<string, string> ExtractArguments(string query)
+        {
+            IDictionary<string, string> arguments = new Dictionary<string, string>();
+            string[] args = query.TrimStart('?').Split('&');
+            foreach (var arg in args)
+            {
+                string[] val = arg.Split('=');
+                arguments[val[0]] = Uri.UnescapeDataString(val[1]);
+            }
+            return arguments;
         }
     }
 }

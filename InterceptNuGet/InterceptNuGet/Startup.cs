@@ -1,30 +1,20 @@
 ﻿using Microsoft.Owin;
-using Newtonsoft.Json.Linq;
-using NuGet.Versioning;
 using Owin;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
-using System.Xml.Linq;
 
 namespace InterceptNuGet
 {
     public class Startup
     {
         static string BaseAddress = "http://nuget3.blob.core.windows.net/feed/resolver";
+        static string SearchBaseAddress = "http://nuget-dev-0-search.cloudapp.net/search/query";
         static string PassThroughAddress = "http://nuget.org";
 
         InterceptDispatcher _dispatcher;
 
         public void Configuration(IAppBuilder app)
         {
-            _dispatcher = new InterceptDispatcher(BaseAddress, PassThroughAddress);
+            _dispatcher = new InterceptDispatcher(BaseAddress, SearchBaseAddress, PassThroughAddress);
             app.Run(Invoke);
         }
 

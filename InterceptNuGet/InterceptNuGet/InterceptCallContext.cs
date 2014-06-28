@@ -1,8 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -43,6 +41,19 @@ namespace InterceptNuGet
             MemoryStream stream = new MemoryStream();
             TextWriter writer = new StreamWriter(stream);
             writer.Write(jtoken.ToString());
+            writer.Flush();
+            byte[] data = stream.ToArray();
+
+            await WriteResponseAsync(data);
+        }
+
+        public async Task WriteResponse(string text)
+        {
+            ResponseContentType = "text/plain; charset=utf-8";
+
+            MemoryStream stream = new MemoryStream();
+            TextWriter writer = new StreamWriter(stream, Encoding.UTF8);
+            writer.Write(text);
             writer.Flush();
             byte[] data = stream.ToArray();
 
