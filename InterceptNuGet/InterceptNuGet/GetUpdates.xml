@@ -1,0 +1,116 @@
+﻿<feed xml:base="http://www.nuget.org/api/v2/" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <id>http://www.nuget.org/api/v2/GetUpdates</id>
+  <title type="text">GetUpdates</title>
+  <updated>2014-06-26T23:43:38Z</updated>
+  <link rel="self" title="GetUpdates" href="GetUpdates" />
+  <entry>
+    <id>http://www.nuget.org/api/v2/Packages(Id='bootstrap',Version='3.1.1')</id>
+    <category term="NuGetGallery.V2FeedPackage" scheme="http://schemas.microsoft.com/ado/2007/08/dataservices/scheme" />
+    <link rel="edit" title="V2FeedPackage" href="Packages(Id='bootstrap',Version='3.1.1')" />
+    <title type="text">bootstrap</title>
+    <summary type="text"></summary>
+    <updated>2014-06-26T23:40:44Z</updated>
+    <author>
+      <name>Mark Otto, Jacob Thornton</name>
+    </author>
+    <link rel="edit-media" title="V2FeedPackage" href="Packages(Id='bootstrap',Version='3.1.1')/$value" />
+    <content type="application/zip" src="http://www.nuget.org/api/v2/package/bootstrap/3.1.1" />
+    <m:properties>
+      <d:Version>3.1.1</d:Version>
+      <!--
+      <d:NormalizedVersion>3.1.1</d:NormalizedVersion>
+      <d:Copyright>Copyright 2013</d:Copyright>
+      <d:Created m:type="Edm.DateTime">2014-02-25T02:04:38.407</d:Created>
+      -->
+      <d:Dependencies>jquery:1.9.0:</d:Dependencies>
+      <d:Description>Sleek, intuitive, and powerful mobile first front-end framework for faster and easier web development.</d:Description>
+      <d:DownloadCount m:type="Edm.Int32">123456</d:DownloadCount>
+      
+      <d:GalleryDetailsUrl>http://www.nuget.org/packages/bootstrap/3.1.1</d:GalleryDetailsUrl>
+      <d:IconUrl>https://github.com/twbs/bootstrap/blob/master/docs-assets/ico/apple-touch-icon-144-precomposed.png</d:IconUrl>
+      <d:IsLatestVersion m:type="Edm.Boolean">true</d:IsLatestVersion>
+      <d:IsAbsoluteLatestVersion m:type="Edm.Boolean">true</d:IsAbsoluteLatestVersion>
+      <d:IsPrerelease m:type="Edm.Boolean">false</d:IsPrerelease>
+      <!--
+      <d:Language m:null="true" />
+      -->
+      <d:Published m:type="Edm.DateTime">2014-02-25T02:04:38.407</d:Published>
+      <!--
+      <d:PackageHash>bZdJfKiF+ez9518keshVM/mIZHCqDSrI+Bb4GjHauYlrMfgNuud9vZxrIf5QbqK9vaZ3mXmq02Kmg+TcPXm2MQ==</d:PackageHash>
+      <d:PackageHashAlgorithm>SHA512</d:PackageHashAlgorithm>
+      -->
+      <!--
+      <d:PackageSize m:type="Edm.Int64">208481</d:PackageSize>
+      <d:ProjectUrl>https://github.com/twbs/bootstrap</d:ProjectUrl>
+      <d:ReportAbuseUrl>http://www.nuget.org/package/ReportAbuse/bootstrap/3.1.1</d:ReportAbuseUrl>
+      -->
+      <d:ReleaseNotes>http://blog.getbootstrap.com/2014/02/13/bootstrap-3-1-1-released/</d:ReleaseNotes>
+      <d:RequireLicenseAcceptance m:type="Edm.Boolean">false</d:RequireLicenseAcceptance>
+      <!--
+      <d:Summary m:null="true" />
+      -->
+      <d:Tags>bootstrap html css javascript web</d:Tags>
+      <d:Title>Bootstrap</d:Title>
+      <!--
+      <d:VersionDownloadCount m:type="Edm.Int32">166246</d:VersionDownloadCount>
+      <d:MinClientVersion m:null="true" />
+      <d:LastEdited m:type="Edm.DateTime" m:null="true" />
+      -->
+      <d:LicenseUrl>https://github.com/twbs/bootstrap/blob/master/LICENSE</d:LicenseUrl>
+      <!--
+      <d:LicenseNames m:null="true" />
+      <d:LicenseReportUrl m:null="true" />
+      -->
+      
+    </m:properties>
+  </entry>
+  <entry>
+    <id>http://www.nuget.org/api/v2/Packages(Id='jQuery',Version='2.1.1')</id>
+    <category term="NuGetGallery.V2FeedPackage" scheme="http://schemas.microsoft.com/ado/2007/08/dataservices/scheme" />
+    <link rel="edit" title="V2FeedPackage" href="Packages(Id='jQuery',Version='2.1.1')" />
+    <title type="text">jQuery</title>
+    <summary type="text"></summary>
+    <updated>2014-06-26T23:40:44Z</updated>
+    <author>
+      <name>jQuery Foundation,  Inc.</name>
+    </author>
+    <link rel="edit-media" title="V2FeedPackage" href="Packages(Id='jQuery',Version='2.1.1')/$value" />
+    <content type="application/zip" src="http://www.nuget.org/api/v2/package/jQuery/2.1.1" />
+    <m:properties>
+      <d:Version>2.1.1</d:Version>
+      <d:NormalizedVersion>2.1.1</d:NormalizedVersion>
+      <d:Copyright m:null="true" />
+      <d:Created m:type="Edm.DateTime">2014-05-14T20:04:34.62</d:Created>
+      <d:Dependencies></d:Dependencies>
+      <d:Description>
+        jQuery is a new kind of JavaScript Library.
+        jQuery is a fast and concise JavaScript Library that simplifies HTML document traversing, event handling, animating, and Ajax interactions for rapid web development. jQuery is designed to change the way that you write JavaScript.
+        NOTE: This package is maintained on behalf of the library owners by the NuGet Community Packages project at http://nugetpackages.codeplex.com/
+      </d:Description>
+      <d:DownloadCount m:type="Edm.Int32">6769391</d:DownloadCount>
+      <d:GalleryDetailsUrl>http://www.nuget.org/packages/jQuery/2.1.1</d:GalleryDetailsUrl>
+      <d:IconUrl m:null="true" />
+      <d:IsLatestVersion m:type="Edm.Boolean">true</d:IsLatestVersion>
+      <d:IsAbsoluteLatestVersion m:type="Edm.Boolean">true</d:IsAbsoluteLatestVersion>
+      <d:IsPrerelease m:type="Edm.Boolean">false</d:IsPrerelease>
+      <d:Language>en-US</d:Language>
+      <d:Published m:type="Edm.DateTime">2014-05-14T20:04:34.62</d:Published>
+      <d:PackageHash>/cy0NGAGBx0W6XLqrnehQAKeJhfnZLDdPnBvlNLq/k4mraD1a7rbHBYzV5PYBaz9t5wh+VrGhPUbPztvnFAOrQ==</d:PackageHash>
+      <d:PackageHashAlgorithm>SHA512</d:PackageHashAlgorithm>
+      <d:PackageSize m:type="Edm.Int64">223865</d:PackageSize>
+      <d:ProjectUrl>http://jquery.com/</d:ProjectUrl>
+      <d:ReportAbuseUrl>http://www.nuget.org/package/ReportAbuse/jQuery/2.1.1</d:ReportAbuseUrl>
+      <d:ReleaseNotes m:null="true" />
+      <d:RequireLicenseAcceptance m:type="Edm.Boolean">false</d:RequireLicenseAcceptance>
+      <d:Summary m:null="true" />
+      <d:Tags>jQuery</d:Tags>
+      <d:Title>jQuery</d:Title>
+      <d:VersionDownloadCount m:type="Edm.Int32">113384</d:VersionDownloadCount>
+      <d:MinClientVersion m:null="true" />
+      <d:LastEdited m:type="Edm.DateTime" m:null="true" />
+      <d:LicenseUrl>http://jquery.org/license</d:LicenseUrl>
+      <d:LicenseNames m:null="true" />
+      <d:LicenseReportUrl m:null="true" />
+    </m:properties>
+  </entry>
+</feed>
