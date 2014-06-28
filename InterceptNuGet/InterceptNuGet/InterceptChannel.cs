@@ -27,7 +27,7 @@ namespace InterceptNuGet
         {
             context.Log(string.Format("GetPackage: {0} {1}", id, version), ConsoleColor.Magenta);
 
-            JObject resolverBlob = await FetchJson(MakeResolverAddress(id));
+            JObject resolverBlob = await FetchJson(context, MakeResolverAddress(id));
 
             NuGetVersion desiredVersion = NuGetVersion.Parse(version);
             JToken desiredPackage = null;
@@ -55,7 +55,7 @@ namespace InterceptNuGet
         {
             context.Log(string.Format("GetLatestVersionPackage: {0} {1}", id, includePrerelease ? "[include prerelease]" : ""), ConsoleColor.Magenta);
 
-            JObject resolverBlob = await FetchJson(MakeResolverAddress(id));
+            JObject resolverBlob = await FetchJson(context, MakeResolverAddress(id));
 
             JToken latest = ExtractLatestVersion(resolverBlob, includePrerelease);
 
@@ -72,7 +72,7 @@ namespace InterceptNuGet
         {
             context.Log(string.Format("GetAllPackageVersions: {0}", id), ConsoleColor.Magenta);
 
-            JObject resolverBlob = await FetchJson(MakeResolverAddress(id));
+            JObject resolverBlob = await FetchJson(context, MakeResolverAddress(id));
             XElement feed = MakeFeed("Packages", resolverBlob["package"], id);
             await context.WriteResponse(feed);
         }
@@ -81,7 +81,7 @@ namespace InterceptNuGet
         {
             context.Log(string.Format("GetListOfPackageVersions: {0}", id), ConsoleColor.Magenta);
 
-            JObject resolverBlob = await FetchJson(MakeResolverAddress(id));
+            JObject resolverBlob = await FetchJson(context, MakeResolverAddress(id));
 
             List<NuGetVersion> versions = new List<NuGetVersion>();
             foreach (JToken package in resolverBlob["package"])
@@ -111,7 +111,7 @@ namespace InterceptNuGet
                 VersionRange range = null;
                 VersionRange.TryParse(versionConstraints[i], out range);
 
-                JObject resolverBlob = await FetchJson(MakeResolverAddress(packageIds[i]));
+                JObject resolverBlob = await FetchJson(context, MakeResolverAddress(packageIds[i]));
                 JToken latest = ExtractLatestVersion(resolverBlob, includePrerelease, range);
                 if (latest == null)
                 {
@@ -210,9 +210,11 @@ namespace InterceptNuGet
             Uri resolverBlobAddress = new Uri(string.Format("{0}/{1}.json", _baseAddress, id));
             return resolverBlobAddress;
         }
-        
-        static async Task<JObject> FetchJson(Uri address)
+
+        async Task<JObject> FetchJson(InterceptCallContext context, Uri address)
         {
+            context.Log(address.ToString(), ConsoleColor.Yellow);
+
             HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.GetAsync(address);
             string json = await response.Content.ReadAsStringAsync();
@@ -220,16 +222,16 @@ namespace InterceptNuGet
             return obj;
         }
 
-        static XElement MakeFeed(string method, IEnumerable<JToken> packages, string id)
+        XElement MakeFeed(string method, IEnumerable<JToken> packages, string id)
         {
             return MakeFeed(method, packages, Enumerable.Repeat(id, packages.Count()).ToArray());
         }
 
-        static XElement MakeFeed(string method, IEnumerable<JToken> packages, string[] id)
+        XElement MakeFeed(string method, IEnumerable<JToken> packages, string[] id)
         {
             XNamespace atom = XNamespace.Get(@"http://www.w3.org/2005/Atom");
             XElement feed = new XElement(atom + "feed");
-            feed.Add(new XElement(atom + "id", string.Format("http://www.nuget.org/api/v2/{0}", method)));
+            feed.Add(new XElement(atom + "id", string.Format("{0}/api/v2/{1}", _passThroughAddress, method)));
             feed.Add(new XElement(atom + "title", method));
             int i = 0;
             foreach (JToken package in packages)
@@ -239,7 +241,7 @@ namespace InterceptNuGet
             return feed;
         }
 
-        static XElement MakeEntry(string id, JToken package)
+        XElement MakeEntry(string id, JToken package)
         {
             XNamespace atom = XNamespace.Get(@"http://www.w3.org/2005/Atom");
             XNamespace d = XNamespace.Get(@"http://schemas.microsoft.com/ado/2007/08/dataservices");
@@ -247,10 +249,11 @@ namespace InterceptNuGet
 
             XElement entry = new XElement(atom + "entry");
 
-            entry.Add(new XElement(atom + "id", string.Format("http://www.nuget.org/api/v2/Packages(Id='{0}',Version='{1}')", id, package["version"])));
+            entry.Add(new XElement(atom + "id", string.Format("{0}/api/v2/Packages(Id='{1}',Version='{2}')", _passThroughAddress, id, package["version"])));
             entry.Add(new XElement(atom + "title", id));
             entry.Add(new XElement(atom + "author", new XElement(atom + "name", "SHIM")));
 
+            // the content URL should come from the json
             entry.Add(new XElement(atom + "content",
                 new XAttribute("type", "application/zip"),
                 new XAttribute("src", string.Format("http://www.nuget.org/api/v2/package/{0}/{1}", id, package["version"]))));
@@ -259,8 +262,9 @@ namespace InterceptNuGet
             entry.Add(properties);
 
             properties.Add(new XElement(d + "Version", package["version"].ToString()));
-            properties.Add(new XElement(d + "Description", "SHIM"));
 
+            // teh following fields should come from the json
+            properties.Add(new XElement(d + "Description", "SHIM"));
             properties.Add(new XElement(d + "IsLatestVersion", new XAttribute(m + "type", "Edm.Boolean"), "true"));
             properties.Add(new XElement(d + "IsAbsoluteLatestVersion", new XAttribute(m + "type", "Edm.Boolean"), "true"));
             properties.Add(new XElement(d + "IsPrerelease", new XAttribute(m + "type", "Edm.Boolean"), "false"));
@@ -293,6 +297,7 @@ namespace InterceptNuGet
                 properties.Add(new XElement(d + "Dependencies", sb.ToString()));
             }
 
+            // license information should come from the json
             bool license = false;
 
             properties.Add(new XElement(d + "RequireLicenseAcceptance", new XAttribute(m + "type", "Edm.Boolean"), license.ToString().ToLowerInvariant()));
@@ -304,8 +309,8 @@ namespace InterceptNuGet
 
             // the following properties required for GetUpdates (from the UI)
 
+            // the following properties should come from the json
             bool iconUrl = false;
-
             if (iconUrl)
             {
                 properties.Add(new XElement(d + "IconUrl", "http://tempuri.org/"));
@@ -315,6 +320,8 @@ namespace InterceptNuGet
             properties.Add(new XElement(d + "GalleryDetailsUrl", "http://tempuri.org/"));
             properties.Add(new XElement(d + "Published", new XAttribute(m + "type", "Edm.DateTime"), "2014-02-25T02:04:38.407"));
             properties.Add(new XElement(d + "Tags", "SHIM.Tags"));
+
+            // title is optional, if it is not there the UI uses tje Id
             //properties.Add(new XElement(d + "Title", "SHIM.Title"));
             properties.Add(new XElement(d + "ReleaseNotes", "SHIM.ReleaseNotes"));
 
