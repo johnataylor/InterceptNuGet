@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace InterceptNuGet
@@ -38,9 +39,8 @@ namespace InterceptNuGet
 
             JObject obj = await FetchJson(context, MakeSearchAddress(searchTerm, isLatestVersion, targetFramework, includePrerelease, skip, take));
 
-            //  translate into Feed XML
-
-            await PassThrough(context);
+            XElement feed = InterceptFormatting.MakeFeedFromSearch(_passThroughAddress, "Packages", obj["data"], "");
+            await context.WriteResponse(feed);
         }
 
         public async Task GetPackage(InterceptCallContext context, string id, string version)
@@ -265,14 +265,32 @@ namespace InterceptNuGet
 
             if (log)
             {
-                using (TextReader reader = new StreamReader(new MemoryStream(data)))
-                {
-                    string s = reader.ReadToEnd();
-                    Console.WriteLine(s);
-                }
+                Dump(contentType, data);
             }
 
             return new Tuple<string, byte[]>(contentType, data);
+        }
+
+        //  Just for debugging
+
+        static void Dump(string contentType, byte[] data)
+        {
+            using (TextReader reader = new StreamReader(new MemoryStream(data)))
+            {
+                string s = reader.ReadToEnd();
+                if (contentType.IndexOf("xml") > -1)
+                {
+                    XElement xml = XElement.Parse(s);
+                    using (XmlWriter writer = XmlWriter.Create(Console.Out, new XmlWriterSettings { Indent = true }))
+                    {
+                        xml.WriteTo(writer);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(s);
+                }
+            }
         }
     }
 }
