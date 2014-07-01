@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
@@ -24,20 +25,34 @@ namespace InterceptNuGet
             _passThroughAddress = passThroughAddress.TrimEnd('/');
         }
 
-        public async Task Count(InterceptCallContext context, string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease)
+        public async Task Root(InterceptCallContext context)
+        {
+            Stream stream = GetResourceStream("xml.Root.xml");
+            XElement xml = XElement.Load(stream);
+            await context.WriteResponse(xml);
+        }
+
+        public async Task Metadata(InterceptCallContext context)
+        {
+            Stream stream = GetResourceStream("xml.Metadata.xml");
+            XElement xml = XElement.Load(stream);
+            await context.WriteResponse(xml);
+        }
+
+        public async Task Count(InterceptCallContext context, string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease, string feedName)
         {
             context.Log(string.Format("Count: {0}", searchTerm), ConsoleColor.Magenta);
 
-            JObject obj = await FetchJson(context, MakeCountAddress(searchTerm, isLatestVersion, targetFramework, includePrerelease));
+            JObject obj = await FetchJson(context, MakeCountAddress(searchTerm, isLatestVersion, targetFramework, includePrerelease, feedName));
             string count = obj["totalHits"].ToString();
             await context.WriteResponse(count);
         }
 
-        public async Task Search(InterceptCallContext context, string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease, int skip, int take)
+        public async Task Search(InterceptCallContext context, string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease, int skip, int take, string feedName)
         {
             context.Log(string.Format("Search: {0} ({1},{2})", searchTerm, skip, take), ConsoleColor.Magenta);
 
-            JObject obj = await FetchJson(context, MakeSearchAddress(searchTerm, isLatestVersion, targetFramework, includePrerelease, skip, take));
+            JObject obj = await FetchJson(context, MakeSearchAddress(searchTerm, isLatestVersion, targetFramework, includePrerelease, skip, take, feedName));
 
             XElement feed = InterceptFormatting.MakeFeedFromSearch(_passThroughAddress, "Packages", obj["data"], "");
             await context.WriteResponse(feed);
@@ -231,17 +246,22 @@ namespace InterceptNuGet
             return resolverBlobAddress;
         }
 
-        Uri MakeCountAddress(string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease)
+        Uri MakeCountAddress(string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease, string feedName)
         {
-            Uri searchAddress = new Uri(string.Format("{0}?q={1}&targetFramework={2}&includePrerelease={3}&countOnly=true",
-                _searchBaseAddress, searchTerm, targetFramework, includePrerelease));
+            string feedArg = feedName == null ? string.Empty : string.Format("&feed={0}", feedName);
+
+            Uri searchAddress = new Uri(string.Format("{0}?q={1}&targetFramework={2}&includePrerelease={3}&countOnly=true{4}",
+                _searchBaseAddress, searchTerm, targetFramework, includePrerelease, feedArg));
+
             return searchAddress;
         }
 
-        Uri MakeSearchAddress(string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease, int skip, int take)
+        Uri MakeSearchAddress(string searchTerm, bool isLatestVersion, string targetFramework, bool includePrerelease, int skip, int take, string feedName)
         {
-            Uri searchAddress = new Uri(string.Format("{0}?q={1}&targetFramework={2}&includePrerelease={3}&skip={4}&take={5}",
-                _searchBaseAddress, searchTerm, targetFramework, includePrerelease, skip, take));
+            string feedArg = feedName == null ? string.Empty : string.Format("&feed={0}", feedName);
+
+            Uri searchAddress = new Uri(string.Format("{0}?q={1}&targetFramework={2}&includePrerelease={3}&skip={4}&take={5}{6}",
+                _searchBaseAddress, searchTerm, targetFramework, includePrerelease, skip, take, feedArg));
             return searchAddress;
         }
 
@@ -269,6 +289,11 @@ namespace InterceptNuGet
             }
 
             return new Tuple<string, byte[]>(contentType, data);
+        }
+
+        public static Stream GetResourceStream(string resName)
+        {
+            return Assembly.GetExecutingAssembly().GetManifestResourceStream(Assembly.GetExecutingAssembly().GetName().Name + "." + resName);
         }
 
         //  Just for debugging

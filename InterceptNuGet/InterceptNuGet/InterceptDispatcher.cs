@@ -26,6 +26,8 @@ namespace InterceptNuGet
 
             _feedFuncs = new Tuple<string, Func<InterceptCallContext, Task>>[]
             {
+                new Tuple<string, Func<InterceptCallContext, Task>>("Search()/$count", Feed_Count),
+                new Tuple<string, Func<InterceptCallContext, Task>>("Search", Feed_Search),
                 new Tuple<string, Func<InterceptCallContext, Task>>("FindPackagesById", Feed_FindPackagesById),
                 new Tuple<string, Func<InterceptCallContext, Task>>("Packages", Feed_Packages),
                 new Tuple<string, Func<InterceptCallContext, Task>>("$metadata", Feed_Metadata)
@@ -36,9 +38,9 @@ namespace InterceptNuGet
 
         public async Task Invoke(InterceptCallContext context)
         {
-            string path = Uri.UnescapeDataString(context.RequestUri.AbsolutePath);
+            string unescapedAbsolutePath = Uri.UnescapeDataString(context.RequestUri.AbsolutePath);
 
-            path = path.Remove(0, "/api/v2/".Length);
+            string path = unescapedAbsolutePath.Remove(0, "/api/v2/".Length);
 
             foreach (var func in _funcs)
             {
@@ -59,10 +61,10 @@ namespace InterceptNuGet
             int index1 = path.IndexOf('/', 0) + 1;
             if (index1 < path.Length)
             {
-                int index2 = path.IndexOf('/', index1) + 1;
+                int index2 = path.IndexOf('/', index1);
                 if (index2 < path.Length)
                 {
-                    path = path.Remove(0, index2);
+                    path = path.Remove(0, index2 + 1);
                 }
             }
 
@@ -86,19 +88,30 @@ namespace InterceptNuGet
         async Task Root(InterceptCallContext context)
         {
             context.Log("Root", ConsoleColor.Green);
-            await _channel.PassThrough(context);
+            await _channel.Root(context);
         }
 
         async Task Metadata(InterceptCallContext context)
         {
             context.Log("Metadata", ConsoleColor.Green);
-            await _channel.PassThrough(context);
+            await _channel.Metadata(context);
         }
 
         async Task Count(InterceptCallContext context)
         {
             context.Log("Count", ConsoleColor.Green);
 
+            await CountImpl(context);
+        }
+        async Task Search(InterceptCallContext context)
+        {
+            context.Log("Search", ConsoleColor.Green);
+
+            await SearchImpl(context);
+        }
+
+        async Task CountImpl(InterceptCallContext context, string feed = null)
+        {
             IDictionary<string, string> arguments = ExtractArguments(context.RequestUri.Query);
 
             string searchTerm = Uri.UnescapeDataString(arguments["searchTerm"]).Trim('\'');
@@ -107,12 +120,10 @@ namespace InterceptNuGet
             bool includePrerelease = false;
             bool.TryParse(Uri.UnescapeDataString(arguments["includePrerelease"]), out includePrerelease);
 
-            await _channel.Count(context, searchTerm, isLatestVersion, targetFramework, includePrerelease);
+            await _channel.Count(context, searchTerm, isLatestVersion, targetFramework, includePrerelease, feed);
         }
-        async Task Search(InterceptCallContext context)
+        async Task SearchImpl(InterceptCallContext context, string feed = null)
         {
-            context.Log("Search", ConsoleColor.Green);
-
             IDictionary<string, string> arguments = ExtractArguments(context.RequestUri.Query);
 
             string searchTerm = Uri.UnescapeDataString(arguments["searchTerm"]).Trim('\'');
@@ -126,7 +137,7 @@ namespace InterceptNuGet
             int take = 30;
             int.TryParse(Uri.UnescapeDataString(arguments["$top"]), out take);
 
-            await _channel.Search(context, searchTerm, isLatestVersion, targetFramework, includePrerelease, skip, take);
+            await _channel.Search(context, searchTerm, isLatestVersion, targetFramework, includePrerelease, skip, take, feed);
         }
 
         async Task FindPackagesById(InterceptCallContext context)
@@ -265,28 +276,44 @@ namespace InterceptNuGet
         async Task Feed_Root(InterceptCallContext context)
         {
             context.Log("Feed_Root", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.Red);
+            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
             await _channel.PassThrough(context);
         }
 
         async Task Feed_Metadata(InterceptCallContext context)
         {
             context.Log("Feed_Metadata", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.Red);
+            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
             await _channel.PassThrough(context);
+        }
+
+        async Task Feed_Count(InterceptCallContext context)
+        {
+            context.Log("Feed_Count", ConsoleColor.Green);
+            string feed = ExtractFeed(context.RequestUri.AbsolutePath);
+            context.Log(string.Format("feed: {0}", feed), ConsoleColor.DarkGreen);
+            await CountImpl(context, feed);
+        }
+
+        async Task Feed_Search(InterceptCallContext context)
+        {
+            context.Log("Feed_Search", ConsoleColor.Green);
+            string feed = ExtractFeed(context.RequestUri.AbsolutePath);
+            context.Log(string.Format("feed: {0}", feed), ConsoleColor.DarkGreen);
+            await SearchImpl(context, feed);
         }
 
         async Task Feed_FindPackagesById(InterceptCallContext context)
         {
             context.Log("Feed_FindPackagesById", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.Red);
+            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
             await _channel.PassThrough(context);
         }
 
         async Task Feed_Packages(InterceptCallContext context)
         {
             context.Log("Feed_Packages", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.Red);
+            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
             await _channel.PassThrough(context);
         }
 
@@ -300,7 +327,12 @@ namespace InterceptNuGet
                 int index2 = path.IndexOf('/', index1) + 1;
                 if (index2 < path.Length)
                 {
-                    return path.Substring(0, index2);
+                    string s = path.Substring(0, index2 + 1);
+                    string[] t = s.Split('/');
+                    if (t.Length > 1)
+                    {
+                        return t[1];
+                    }
                 }
             }
             return string.Empty;

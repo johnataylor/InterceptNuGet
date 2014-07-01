@@ -124,7 +124,6 @@ namespace InterceptNuGet
             XElement feed = new XElement(atom + "feed");
             feed.Add(new XElement(atom + "id", string.Format("{0}/api/v2/{1}", feedBaseAddress, method)));
             feed.Add(new XElement(atom + "title", method));
-            int i = 0;
             foreach (JToken package in packages)
             {
                 feed.Add(MakeEntrySearch(feedBaseAddress, "", package));
