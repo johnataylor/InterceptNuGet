@@ -131,7 +131,6 @@ namespace InterceptNuGet
             string targetFramework = Uri.UnescapeDataString(arguments["targetFramework"]).Trim('\'');
             bool includePrerelease = false;
             bool.TryParse(Uri.UnescapeDataString(arguments["includePrerelease"]), out includePrerelease);
-            string orderBy = Uri.UnescapeDataString(arguments["$orderby"]);
             int skip = 0;
             int.TryParse(Uri.UnescapeDataString(arguments["$skip"]), out skip);
             int take = 30;
@@ -228,26 +227,40 @@ namespace InterceptNuGet
             string path = Uri.UnescapeDataString(context.RequestUri.AbsolutePath);
             string query = context.RequestUri.Query;
 
-            if (path.EndsWith("Packages()") && query != string.Empty)
+            await GetPackage(context, path, query);
+        }
+
+        async Task GetPackage(InterceptCallContext context, string path, string query, string feed = null)
+        {
+            if (path.EndsWith("Packages()"))
             {
-                string[] terms = query.Split('&');
-                string id = null;
-                foreach (string term in terms)
+                IDictionary<string, string> arguments = ExtractArguments(context.RequestUri.Query);
+
+                string filter = null;
+                arguments.TryGetValue("$filter", out filter);
+
+                if (filter == null)
                 {
-                    if (term.Trim('?').StartsWith("$filter"))
+                    await _channel.ListAllVersion(context);
+                }
+                else if (filter == "IsLatestVersion")
+                {
+                    await _channel.ListLatestVersion(context);
+                }
+                else
+                {
+                    string t = Uri.UnescapeDataString(filter);
+                    string s = t.Substring(t.IndexOf("eq") + 2).Trim(' ', '\'');
+
+                    string id = s.ToLowerInvariant();
+
+                    if (id == null)
                     {
-                        string t = Uri.UnescapeDataString(term);
-                        string s = t.Substring(t.IndexOf("eq") + 2).Trim(' ', '\'');
-
-                        id = s.ToLowerInvariant();
+                        throw new Exception("unable to find id in query string");
                     }
-                }
-                if (id == null)
-                {
-                    throw new Exception("unable to find id in query string");
-                }
 
-                await _channel.GetAllPackageVersions(context, id);
+                    await _channel.GetAllPackageVersions(context, id);
+                }
             }
             else
             {
@@ -270,21 +283,24 @@ namespace InterceptNuGet
                     }
                 }
 
-                await _channel.GetPackage(context, id, version);
+                await _channel.GetPackage(context, id, version, feed);
             }
         }
+
         async Task Feed_Root(InterceptCallContext context)
         {
             context.Log("Feed_Root", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
-            await _channel.PassThrough(context);
+            string feed = ExtractFeed(context.RequestUri.AbsolutePath);
+            context.Log(string.Format("feed: {0}", feed), ConsoleColor.DarkGreen);
+            await _channel.Root(context, feed);
         }
 
         async Task Feed_Metadata(InterceptCallContext context)
         {
             context.Log("Feed_Metadata", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
-            await _channel.PassThrough(context);
+            string feed = ExtractFeed(context.RequestUri.AbsolutePath);
+            context.Log(string.Format("feed: {0}", feed), ConsoleColor.DarkGreen);
+            await _channel.Metadata(context, feed);
         }
 
         async Task Feed_Count(InterceptCallContext context)
@@ -313,8 +329,15 @@ namespace InterceptNuGet
         async Task Feed_Packages(InterceptCallContext context)
         {
             context.Log("Feed_Packages", ConsoleColor.Green);
-            context.Log(string.Format("feed: {0}", ExtractFeed(context.RequestUri.AbsolutePath)), ConsoleColor.DarkGreen);
-            await _channel.PassThrough(context);
+            string feed = ExtractFeed(context.RequestUri.AbsolutePath);
+            context.Log(string.Format("feed: {0}", feed), ConsoleColor.DarkGreen);
+
+            string path = Uri.UnescapeDataString(context.RequestUri.AbsolutePath);
+            path = path.Substring(path.IndexOf(feed) + feed.Length + 1);
+
+            string query = context.RequestUri.Query;
+
+            await GetPackage(context, path, query, feed);
         }
 
         static string ExtractFeed(string path)
@@ -324,7 +347,7 @@ namespace InterceptNuGet
             int index1 = path.IndexOf('/', 0) + 1;
             if (index1 < path.Length)
             {
-                int index2 = path.IndexOf('/', index1) + 1;
+                int index2 = path.IndexOf('/', index1);
                 if (index2 < path.Length)
                 {
                     string s = path.Substring(0, index2 + 1);

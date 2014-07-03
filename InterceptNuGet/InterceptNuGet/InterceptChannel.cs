@@ -25,16 +25,31 @@ namespace InterceptNuGet
             _passThroughAddress = passThroughAddress.TrimEnd('/');
         }
 
-        public async Task Root(InterceptCallContext context)
+        public async Task Root(InterceptCallContext context, string feedName = null)
         {
-            Stream stream = GetResourceStream("xml.Root.xml");
-            XElement xml = XElement.Load(stream);
-            await context.WriteResponse(xml);
+            context.Log(string.Format("Root: {0}", feedName ?? string.Empty), ConsoleColor.Magenta);
+
+            if (feedName == null)
+            {
+                Stream stream = GetResourceStream("xml.Root.xml");
+                XElement xml = XElement.Load(stream);
+                await context.WriteResponse(xml);
+            }
+            else
+            {
+                Stream stream = GetResourceStream("xml.FeedRoot.xml");
+                string s = (new StreamReader(stream)).ReadToEnd();
+                string t = string.Format(s, feedName);
+                XElement xml = XElement.Load(new StringReader(t), LoadOptions.SetBaseUri);
+                await context.WriteResponse(xml);
+            }
         }
 
-        public async Task Metadata(InterceptCallContext context)
+        public async Task Metadata(InterceptCallContext context, string feed = null)
         {
-            Stream stream = GetResourceStream("xml.Metadata.xml");
+            context.Log(string.Format("Metadata: {0}", feed ?? string.Empty), ConsoleColor.Magenta);
+
+            Stream stream = GetResourceStream(feed == null ? "xml.Metadata.xml" : "xml.FeedMetadata.xml");
             XElement xml = XElement.Load(stream);
             await context.WriteResponse(xml);
         }
@@ -58,7 +73,7 @@ namespace InterceptNuGet
             await context.WriteResponse(feed);
         }
 
-        public async Task GetPackage(InterceptCallContext context, string id, string version)
+        public async Task GetPackage(InterceptCallContext context, string id, string version, string feedName)
         {
             context.Log(string.Format("GetPackage: {0} {1}", id, version), ConsoleColor.Magenta);
 
@@ -133,6 +148,16 @@ namespace InterceptNuGet
             }
 
             await context.WriteResponse(array);
+        }
+
+        public async Task ListAllVersion(InterceptCallContext context)
+        {
+            await PassThrough(context);
+        }
+
+        public async Task ListLatestVersion(InterceptCallContext context)
+        {
+            await PassThrough(context);
         }
 
         public async Task GetUpdates(InterceptCallContext context, string[] packageIds, string[] versions, string[] versionConstraints, string[] targetFrameworks, bool includePrerelease, bool includeAllVersions)
@@ -309,6 +334,9 @@ namespace InterceptNuGet
                     using (XmlWriter writer = XmlWriter.Create(Console.Out, new XmlWriterSettings { Indent = true }))
                     {
                         xml.WriteTo(writer);
+
+                        //int count = xml.Elements(XName.Get("entry", "http://www.w3.org/2005/Atom")).Count();
+                        //Console.WriteLine(count);
                     }
                 }
                 else
