@@ -25,6 +25,33 @@ namespace InterceptNuGet
             _passThroughAddress = passThroughAddress.TrimEnd('/');
         }
 
+        public static async Task<InterceptChannel> Create(string source)
+        {
+            HttpClient client = new HttpClient();
+            HttpResponseMessage response = await client.GetAsync(source);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                HttpResponseMessage rootResponse = await client.GetAsync(source + "/root.xml");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string text = await rootResponse.Content.ReadAsStringAsync();
+
+                    XNamespace shim = XNamespace.Get("http://schema.nuget.org/shim");
+
+                    XElement interceptionSpecification = XElement.Parse(text);
+
+                    string baseAddress = interceptionSpecification.Elements(shim + "baseAddress").First().Value;
+                    string searchBaseAddress = interceptionSpecification.Elements(shim + "searchBaseAddress").First().Value;
+                    string passThroughAddress = interceptionSpecification.Elements(shim + "passThroughAddress").First().Value;
+
+                    return new InterceptChannel(baseAddress, searchBaseAddress, passThroughAddress);
+                }
+            }
+
+            return null;
+        }
+
         public async Task Root(InterceptCallContext context, string feedName = null)
         {
             context.Log(string.Format("Root: {0}", feedName ?? string.Empty), ConsoleColor.Magenta);
@@ -186,10 +213,15 @@ namespace InterceptNuGet
 
         public async Task PassThrough(InterceptCallContext context, bool log = false)
         {
-            string pathAndQuery = context.RequestUri.PathAndQuery;
-            Uri forwardAddress = new Uri(_passThroughAddress + pathAndQuery);
+            context.Log(_passThroughAddress + context.RequestUri.PathAndQuery, ConsoleColor.Cyan);
 
-            context.Log(forwardAddress, ConsoleColor.Cyan);
+            await InterceptChannel.PassThrough(context, _passThroughAddress, log);
+        }
+
+        public static async Task PassThrough(InterceptCallContext context, string baseAddress, bool log = false)
+        {
+            string pathAndQuery = context.RequestUri.PathAndQuery;
+            Uri forwardAddress = new Uri(baseAddress + pathAndQuery);
 
             Tuple<string, byte[]> content = await Forward(forwardAddress, log);
 

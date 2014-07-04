@@ -9,8 +9,10 @@ namespace InterceptNuGet
         Tuple<string, Func<InterceptCallContext, Task>>[] _funcs;
         Tuple<string, Func<InterceptCallContext, Task>>[] _feedFuncs;
         InterceptChannel _channel;
+        string _source;
+        bool _initialized;
 
-        public InterceptDispatcher(string baseAddress, string searchBaseAddress, string passThroughAddress)
+        public InterceptDispatcher(string source)
         {
             _funcs = new Tuple<string, Func<InterceptCallContext, Task>>[]
             {
@@ -33,11 +35,24 @@ namespace InterceptNuGet
                 new Tuple<string, Func<InterceptCallContext, Task>>("$metadata", Feed_Metadata)
             };
 
-            _channel = new InterceptChannel(baseAddress, searchBaseAddress, passThroughAddress);
+            _source = source.Trim('/');
+            _initialized = false;
         }
 
         public async Task Invoke(InterceptCallContext context)
         {
+            if (!_initialized)
+            {
+                _channel = await InterceptChannel.Create(_source);
+                _initialized = true;
+            }
+
+            if (_channel == null)
+            {
+                await InterceptChannel.PassThrough(context, _source);
+                return;
+            }
+
             string unescapedAbsolutePath = Uri.UnescapeDataString(context.RequestUri.AbsolutePath);
 
             string path = unescapedAbsolutePath.Remove(0, "/api/v2/".Length);
@@ -85,15 +100,18 @@ namespace InterceptNuGet
             context.Log("default", ConsoleColor.Red);
             await _channel.PassThrough(context);
         }
+
         async Task Root(InterceptCallContext context)
         {
             context.Log("Root", ConsoleColor.Green);
+
             await _channel.Root(context);
         }
 
         async Task Metadata(InterceptCallContext context)
         {
             context.Log("Metadata", ConsoleColor.Green);
+
             await _channel.Metadata(context);
         }
 
